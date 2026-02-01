@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VINTRACE - Vehicle Identification Decoder</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- PAGE 1: LANDING / VIN INPUT PAGE -->
+    <div id="inputPage" class="page active">
+        <!-- Header / Navigation -->
+        <header class="main-header">
+            <div class="header-content">
+                <div class="logo-section">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <svg width="40" height="40" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                            <defs>
+                                <linearGradient id="vGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#ffa64d;stop-opacity:1" />
+                                    <stop offset="50%" style="stop-color:#ff8c00;stop-opacity:1" />
+                                    <stop offset="100%" style="stop-color:#cc7000;stop-opacity:1" />
+                                </linearGradient>
+                                <linearGradient id="tGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.95" />
+                                    <stop offset="50%" style="stop-color:#e0e0e0;stop-opacity:1" />
+                                    <stop offset="100%" style="stop-color:#c0c0c0;stop-opacity:1" />
+                                </linearGradient>
+                            </defs>
+                            <!-- V Letter (Orange) -->
+                            <path d="M 10 20 L 30 60 L 35 60 L 50 20 L 45 20 L 33 55 L 32 55 L 15 20 Z" fill="url(#vGradient)" />
+                            <!-- T Letter (Silver) -->
+                            <path d="M 60 20 L 90 20 L 90 25 L 75 25 L 75 60 L 70 60 L 70 25 L 60 25 Z" fill="url(#tGradient)" />
+                        </svg>
+                        <div>
+                            <h1 class="logo">VINTRACE</h1>
+                            <p class="logo-subtitle">Vehicle Identification Decoder</p>
+                        </div>
+                    </div>
+                </div>
+                <button class="contact-btn" id="contactBtn">Contact</button>
+            </div>
+        </header>
+
+        <!-- Hero Section -->
+        <section class="hero-section">
+            <div class="hero-container">
+                <!-- Left: Car Image -->
+                <div class="hero-left">
+                    <div class="car-image-wrapper">
+                        <img src="mercedes-g-wagen.jpg" alt="Mercedes-Benz G-Wagen" class="car-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <svg class="car-image-svg" viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg" style="display: none;">
+                            <defs>
+                                <radialGradient id="orangeGlow" cx="50%" cy="100%">
+                                    <stop offset="0%" style="stop-color:#ff8c00;stop-opacity:0.6" />
+                                    <stop offset="100%" style="stop-color:#ff8c00;stop-opacity:0" />
+                                </radialGradient>
+                            </defs>
+                            <ellipse cx="400" cy="550" rx="150" ry="50" fill="url(#orangeGlow)" />
+                            <path d="M 150 400 L 180 350 L 620 350 L 650 400 L 650 500 L 150 500 Z" fill="#0a0a0a" opacity="0.9"/>
+                            <rect x="300" y="350" width="200" height="80" fill="#1a1a1a" opacity="0.8"/>
+                            <circle cx="400" cy="395" r="25" fill="#c0c0c0" opacity="0.6"/>
+                            <circle cx="280" cy="390" r="20" fill="#ffffff" opacity="0.9"/>
+                            <circle cx="280" cy="390" r="12" fill="#ff8c00" opacity="0.8"/>
+                            <circle cx="250" cy="500" r="40" fill="#0a0a0a"/>
+                            <circle cx="550" cy="500" r="40" fill="#0a0a0a"/>
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Center: VIN Input Circle -->
+                <div class="hero-center">
+                    <div class="vin-input-section">
+                        <h2 class="input-title">Enter Your VIN</h2>
+                        <div class="circle-input-wrapper">
+                            <svg class="circle-progress" viewBox="0 0 200 200">
+                                <circle class="circle-bg" cx="100" cy="100" r="90" />
+                                <circle class="circle-progress-bar" cx="100" cy="100" r="90" />
+                            </svg>
+                            <div class="circle-content">
+                                <input 
+                                    type="text" 
+                                    id="vinInput" 
+                                    class="vin-input-circle"
+                                    placeholder="VIN"
+                                    maxlength="17"
+                                    autocomplete="off"
+                                    autofocus
+                                />
+                                <div class="vin-display" id="vinDisplay"></div>
+                            </div>
+                        </div>
+                        <div class="error-message" id="errorMessage"></div>
+                    </div>
+                </div>
+
+                <!-- Right: VIN Structure Card -->
+                <div class="hero-right">
+                    <div class="structure-card">
+                        <h3 class="card-title">What is the structure of a Vehicle Identification Number?</h3>
+                        <div class="structure-table">
+                            <div class="structure-row">
+                                <span class="structure-position">1</span>
+                                <span class="structure-label">Country</span>
+                            </div>
+                            <div class="structure-row">
+                                <span class="structure-position">2-3</span>
+                                <span class="structure-label">Manufacturer</span>
+                            </div>
+                            <div class="structure-row">
+                                <span class="structure-position">4-8</span>
+                                <span class="structure-label">Vehicle Attributes</span>
+                            </div>
+                            <div class="structure-row">
+                                <span class="structure-position">9</span>
+                                <span class="structure-label">Security Code</span>
+                            </div>
+                            <div class="structure-row">
+                                <span class="structure-position">10</span>
+                                <span class="structure-label">Model Year</span>
+                            </div>
+                            <div class="structure-row">
+                                <span class="structure-position">11</span>
+                                <span class="structure-label">Assembly Plant</span>
+                            </div>
+                            <div class="structure-row">
+                                <span class="structure-position">12-17</span>
+                                <span class="structure-label">Serial Number</span>
+                            </div>
+                        </div>
+                        <p class="structure-note">Note: Pre-1981 vehicles may have VINs of different lengths.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Info Sections -->
+        <section class="info-sections">
+            <div class="info-container">
+                <div class="info-card">
+                    <div class="info-icon">🔍</div>
+                    <h3 class="info-card-title">What is a VIN?</h3>
+                    <p class="info-card-text">A Vehicle Identification Number (VIN) is a unique 17-character code that serves as a vehicle's fingerprint. It contains information about the vehicle's manufacturer, model, year, and specifications.</p>
+                </div>
+
+                <div class="info-card">
+                    <div class="info-icon">📋</div>
+                    <h3 class="info-card-title">The Anatomy of a VIN</h3>
+                    <p class="info-card-text">Each position in a VIN reveals specific information. From the country of origin to the serial number, every character has meaning and follows international standards.</p>
+                </div>
+
+                <div class="info-card">
+                    <div class="info-icon">⚙️</div>
+                    <h3 class="info-card-title">How a VIN Decoder Works</h3>
+                    <p class="info-card-text">Our decoder queries multiple databases and APIs to extract comprehensive vehicle information, including make, model, engine specifications, and manufacturing details.</p>
+                </div>
+
+                <div class="info-card">
+                    <div class="info-icon">✅</div>
+                    <h3 class="info-card-title">Why VIN Decoding Is Important</h3>
+                    <p class="info-card-text">VIN decoding helps verify vehicle authenticity, check specifications before purchase, understand vehicle history, and ensure compliance with regulations.</p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- PAGE 2: CHECKING / LOADING PAGE -->
+    <div id="loadingPage" class="page">
+        <div class="loading-container">
+            <div class="slot-machine">
+                <div class="slot-reel" id="slotReel">
+                    <!-- Characters will be dynamically inserted here -->
+                </div>
+            </div>
+            <div class="loading-status">
+                <p id="statusText" class="status-text">Validating VIN format...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAGE 3: RESULTS PAGE -->
+    <div id="resultsPage" class="page">
+        <div class="results-container">
+            <div class="results-header">
+                <button class="back-btn" id="backBtn">
+                    <span>←</span> New Search
+                </button>
+                <h2 class="results-title">VIN Decode Results</h2>
+            </div>
+            
+            <div class="results-grid" id="resultGrid">
+                <!-- Results will be populated here -->
+            </div>
+            
+            <div class="sources-section" id="sources" style="display: none;">
+                <h3 class="sources-title">Data Sources</h3>
+                <div class="sources-list" id="sourcesList"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAGE 4: CONTACT PAGE -->
+    <div id="contactPage" class="page">
+        <div class="contact-container">
+            <button class="back-btn contact-back-btn" id="contactBackBtn">
+                <span>←</span> Back
+            </button>
+            <div class="contact-content">
+                <h2 class="contact-title">Contact Us</h2>
+                <p class="contact-subtitle">Have questions about a VIN? Contact us and we'll help you decode it.</p>
+                
+                <form class="contact-form" id="contactForm" action="https://formspree.io/f/YOUR_FORM_ID" method="POST">
+                    <div class="form-group">
+                        <label for="contactName">Name</label>
+                        <input type="text" id="contactName" name="name" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="contactEmail">Email</label>
+                        <input type="email" id="contactEmail" name="email" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="contactMessage">Message</label>
+                        <textarea id="contactMessage" name="message" rows="6" required></textarea>
+                    </div>
+                    
+                    <button type="submit" class="submit-btn">Send Message</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
