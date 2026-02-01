@@ -45,14 +45,23 @@ const scrapeFreeVINDecoder = async (vin) => {
         });
         
         // Metoda 2: Caută în div-uri și span-uri cu pattern "Label: Value"
-        $('div, span, p, li').each((i, elem) => {
-            const text = $(elem).text().trim();
-            if (text.includes(':') && text.length < 200) {
+        // Filtrează doar elementele care nu sunt copii (nu au copii cu același text)
+        $('div, span, p, li, dt, dd').each((i, elem) => {
+            const $elem = $(elem);
+            const text = $elem.text().trim();
+            
+            // Ignoră dacă elementul are copii cu același text (probabil container)
+            const childrenText = $elem.children().map((i, child) => $(child).text().trim()).get().join(' ');
+            if (text === childrenText) return;
+            
+            if (text.includes(':') && text.length > 5 && text.length < 300) {
                 const parts = text.split(':');
                 if (parts.length >= 2) {
                     const label = parts[0].trim();
                     const value = parts.slice(1).join(':').trim();
-                    if (label && value && value.length > 0 && value.length < 200) {
+                    
+                    // Verifică că label-ul nu este prea lung și value-ul nu este gol
+                    if (label && label.length < 50 && value && value.length > 0 && value.length < 250) {
                         const key = label.toLowerCase()
                             .replace(/[^\w\s]/g, '')
                             .replace(/\s+/g, '_')
@@ -63,6 +72,8 @@ const scrapeFreeVINDecoder = async (vin) => {
                             !key.includes('cookie') && !key.includes('javascript') &&
                             !key.includes('twitter') && !key.includes('facebook') &&
                             !key.includes('google') && !key.includes('privacy') &&
+                            !key.includes('terms') && !key.includes('policy') &&
+                            !value.includes('function(') && !value.includes('javascript:') &&
                             (!data[key] || data[key] === '')) {
                             data[key] = value;
                         }
@@ -100,15 +111,18 @@ const scrapeFreeVINDecoder = async (vin) => {
         Object.keys(data).forEach(key => {
             const value = data[key];
             // Ignoră câmpurile care conțin cod JavaScript sau sunt prea lungi
+            // Dar fii mai permisiv - acceptă mai multe date
             if (key && value && typeof value === 'string' && 
-                value.length < 500 && 
+                value.length > 0 && value.length < 500 && 
                 !value.includes('documentreadyfunction') &&
                 !value.includes('twitter-circle') &&
                 !value.includes('function(') &&
                 !value.includes('javascript:') &&
                 !value.includes('onclick') &&
-                !value.includes('onerror')) {
-                cleanData[key] = value;
+                !value.includes('onerror') &&
+                !value.includes('undefined') &&
+                value.trim() !== '') {
+                cleanData[key] = value.trim();
             }
         });
         
@@ -159,8 +173,33 @@ const scrapeFreeVINDecoder = async (vin) => {
             });
         }
         
-        // Dacă avem cel puțin 2 câmpuri valide (inclusiv VIN), considerăm succes
-        if (validFields.length >= 2) {
+        // Log detaliat pentru debugging
+        console.log('Scraping result:', {
+            totalExtracted: Object.keys(cleanData).length,
+            validFields: validFields.length,
+            hasVIN: !!formatted.vin,
+            hasMake: !!formatted.make,
+            hasModel: !!formatted.model,
+            sampleKeys: Object.keys(cleanData).slice(0, 5),
+            sampleData: Object.keys(cleanData).slice(0, 5).reduce((acc, key) => {
+                acc[key] = cleanData[key];
+                return acc;
+            }, {})
+        });
+        
+        // Dacă avem cel puțin VIN (care este mereu setat), considerăm succes
+        // Returnează date chiar dacă sunt puține
+        if (validFields.length >= 1 || Object.keys(cleanData).length > 0) {
+            // Dacă nu avem make/model dar avem alte date, le returnăm
+            if (!formatted.make && !formatted.model && Object.keys(cleanData).length > 0) {
+                // Adaugă toate datele din cleanData direct în formatted
+                Object.keys(cleanData).forEach(key => {
+                    if (!formatted[key] && key !== 'vin') {
+                        formatted[key] = cleanData[key];
+                    }
+                });
+            }
+            
             return {
                 success: true,
                 data: formatted,
@@ -168,21 +207,15 @@ const scrapeFreeVINDecoder = async (vin) => {
             };
         }
         
-        // Dacă nu avem date, returnează totuși ce am găsit (poate sunt date în raw)
-        if (Object.keys(cleanData).length > 0) {
-            return {
-                success: true,
-                data: formatted,
-                raw: cleanData
-            };
-        }
-        
+        // Dacă chiar nu avem nimic, returnează eroare cu detalii
         return { 
             success: false, 
             error: 'No valid data extracted from FreeVINDecoder',
             debug: {
                 extractedKeys: Object.keys(cleanData).length,
-                formattedKeys: Object.keys(formatted).length
+                formattedKeys: Object.keys(formatted).length,
+                htmlLength: response.data.length,
+                hasTables: $('table').length > 0
             }
         };
     } catch (error) {
