@@ -21,7 +21,8 @@ const init = () => {
 
 const createTables = () => {
     return new Promise((resolve, reject) => {
-        const queries = [
+        // Creăm tabelele mai întâi
+        const tableQueries = [
             `CREATE TABLE IF NOT EXISTS vin_lookups (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 vin TEXT UNIQUE NOT NULL,
@@ -44,13 +45,20 @@ const createTables = () => {
                 lookup_date DATETIME DEFAULT CURRENT_TIMESTAMP,
                 ip_address TEXT,
                 success BOOLEAN
-            )`,
+            )`
+        ];
+
+        // Creăm index-urile după ce tabelele sunt create
+        const indexQueries = [
             `CREATE INDEX IF NOT EXISTS idx_vin ON vin_lookups(vin)`,
             `CREATE INDEX IF NOT EXISTS idx_lookup_date ON lookup_history(lookup_date)`
         ];
 
         let completed = 0;
-        queries.forEach((query, index) => {
+        const totalQueries = tableQueries.length + indexQueries.length;
+
+        // Creăm mai întâi tabelele
+        tableQueries.forEach((query, index) => {
             db.run(query, (err) => {
                 if (err) {
                     console.error(`Error creating table ${index}:`, err);
@@ -58,8 +66,21 @@ const createTables = () => {
                     return;
                 }
                 completed++;
-                if (completed === queries.length) {
-                    resolve();
+                // După ce toate tabelele sunt create, creăm index-urile
+                if (completed === tableQueries.length) {
+                    indexQueries.forEach((indexQuery, idx) => {
+                        db.run(indexQuery, (err) => {
+                            if (err) {
+                                console.error(`Error creating index ${idx}:`, err);
+                                reject(err);
+                                return;
+                            }
+                            completed++;
+                            if (completed === totalQueries) {
+                                resolve();
+                            }
+                        });
+                    });
                 }
             });
         });
