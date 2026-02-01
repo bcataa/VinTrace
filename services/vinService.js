@@ -93,17 +93,26 @@ const lookupVIN = async (vin, ip) => {
         // Returnează rezultatele CHIAR DACĂ nu sunt complete
         // NU MAI SALVĂM ÎN BAZA DE DATE
         if (apiData && apiData.sources && apiData.sources.length > 0) {
-            // NU mai salvăm în database
-            // await saveVINData(normalizedVIN, { ...apiData.data, raw_data: apiData.sources || apiData.data?.raw_data });
-            // await logLookup(normalizedVIN, ip, apiData.success);
+            // Log pentru debugging
+            console.log('VIN Lookup Result:', {
+                vin: normalizedVIN,
+                success: apiData.success,
+                hasData: !!apiData.data,
+                dataKeys: apiData.data ? Object.keys(apiData.data).length : 0,
+                sourcesCount: apiData.sources.length,
+                successfulSources: apiData.sources.filter(s => s.success).length
+            });
             
             // Returnează rezultatele cu toate datele de la sursele cu succes
+            // IMPORTANT: Returnează date chiar dacă success este false, dacă există date
+            const hasData = apiData.data && Object.keys(apiData.data).length > 0;
             return {
-                success: apiData.success || false,
+                success: hasData || apiData.success || false,
                 cached: false,
                 data: apiData.data || {},
                 sources: apiData.sources || [],
-                successfulSources: apiData.sources.filter(s => s.success) || [] // Doar sursele cu succes
+                successfulSources: apiData.sources.filter(s => s.success) || [],
+                error: hasData ? null : (apiData.error || 'No data found')
             };
         } else {
             // await logLookup(normalizedVIN, ip, false);

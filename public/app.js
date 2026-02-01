@@ -203,11 +203,23 @@ async function fetchVINData(vin) {
                 hasData: !!data.data, 
                 dataKeys: data.data ? Object.keys(data.data).length : 0,
                 success: data.success,
-                sampleData: data.data ? { make: data.data.make, model: data.data.model, year: data.data.year } : null
+                error: data.error,
+                sources: data.sources,
+                sampleData: data.data ? { 
+                    make: data.data.make, 
+                    model: data.data.model, 
+                    year: data.data.year,
+                    vin: data.data.vin,
+                    allKeys: Object.keys(data.data)
+                } : null
             });
             
+            // Afișează rezultatele chiar dacă sunt puține date
             if (data.data && Object.keys(data.data).length > 0) {
                 displayResults(data.data, data.sources || []);
+            } else if (data.error) {
+                // Dacă există eroare, o afișăm
+                showErrorPage(data.error || 'Nu s-au putut obține date pentru acest VIN');
             } else {
                 console.warn('No data in response, showing empty results');
                 displayResults({}, data.sources || []);

@@ -12,37 +12,84 @@ const scrapeFreeVINDecoder = async (vin) => {
             timeout: 20000,
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Referer': 'https://www.freevindecoder.eu/'
             }
         });
         
         const $ = cheerio.load(response.data);
         const data = {};
         
-        // Extrage datele din pagină - caută în tabele și elemente cu date VIN
-        $('table tr, .vin-data, [class*="vin"], [class*="data"], div, span, p').each((i, elem) => {
-            const text = $(elem).text().trim();
-            if (text.includes(':')) {
-                const [label, ...valueParts] = text.split(':');
-                const value = valueParts.join(':').trim();
-                if (label && value && value.length < 200) {
+        // Metoda 1: Caută în tabele (cel mai comun format)
+        $('table tr').each((i, elem) => {
+            const cells = $(elem).find('td, th');
+            if (cells.length >= 2) {
+                const label = $(cells[0]).text().trim();
+                const value = $(cells[1]).text().trim();
+                if (label && value && value.length < 300 && !value.includes('function(')) {
                     const key = label.toLowerCase()
                         .replace(/[^\w\s]/g, '')
                         .replace(/\s+/g, '_')
                         .replace(/ă/g, 'a').replace(/â/g, 'a')
                         .replace(/î/g, 'i').replace(/ș/g, 's').replace(/ț/g, 't');
                     
-                    // Ignoră câmpurile invalide sau duplicate
-                    if (key && key.length > 2 && key.length < 50 && 
-                        !key.startsWith('_') && 
-                        !key.includes('cookie') &&
-                        !key.includes('javascript') &&
-                        !key.includes('function') &&
-                        !key.includes('twitter') &&
-                        !key.includes('facebook') &&
-                        !key.includes('google') &&
+                    if (key && key.length > 1 && key.length < 50 && 
+                        !key.includes('cookie') && !key.includes('javascript') &&
+                        !key.includes('twitter') && !key.includes('facebook') &&
                         (!data[key] || data[key] === '')) {
                         data[key] = value;
+                    }
+                }
+            }
+        });
+        
+        // Metoda 2: Caută în div-uri și span-uri cu pattern "Label: Value"
+        $('div, span, p, li').each((i, elem) => {
+            const text = $(elem).text().trim();
+            if (text.includes(':') && text.length < 200) {
+                const parts = text.split(':');
+                if (parts.length >= 2) {
+                    const label = parts[0].trim();
+                    const value = parts.slice(1).join(':').trim();
+                    if (label && value && value.length > 0 && value.length < 200) {
+                        const key = label.toLowerCase()
+                            .replace(/[^\w\s]/g, '')
+                            .replace(/\s+/g, '_')
+                            .replace(/ă/g, 'a').replace(/â/g, 'a')
+                            .replace(/î/g, 'i').replace(/ș/g, 's').replace(/ț/g, 't');
+                        
+                        if (key && key.length > 1 && key.length < 50 &&
+                            !key.includes('cookie') && !key.includes('javascript') &&
+                            !key.includes('twitter') && !key.includes('facebook') &&
+                            !key.includes('google') && !key.includes('privacy') &&
+                            (!data[key] || data[key] === '')) {
+                            data[key] = value;
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Metoda 3: Caută în elemente cu clase specifice
+        $('[class*="vin"], [class*="data"], [class*="info"], [class*="detail"]').each((i, elem) => {
+            const text = $(elem).text().trim();
+            if (text.includes(':') && text.length < 200) {
+                const parts = text.split(':');
+                if (parts.length >= 2) {
+                    const label = parts[0].trim();
+                    const value = parts.slice(1).join(':').trim();
+                    if (label && value && value.length > 0) {
+                        const key = label.toLowerCase()
+                            .replace(/[^\w\s]/g, '')
+                            .replace(/\s+/g, '_')
+                            .replace(/ă/g, 'a').replace(/â/g, 'a')
+                            .replace(/î/g, 'i').replace(/ș/g, 's').replace(/ț/g, 't');
+                        
+                        if (key && key.length > 1 && key.length < 50 &&
+                            !data[key] || data[key] === '') {
+                            data[key] = value;
+                        }
                     }
                 }
             }
@@ -93,14 +140,36 @@ const scrapeFreeVINDecoder = async (vin) => {
             }
         });
         
-        // Verifică dacă avem date valide (cel puțin 3 câmpuri populate)
+        // Verifică dacă avem date valide (cel puțin 2 câmpuri populate, inclusiv VIN)
         const validFields = Object.keys(formatted).filter(k => 
             formatted[k] !== null && 
             formatted[k] !== '' && 
-            formatted[k] !== undefined
+            formatted[k] !== undefined &&
+            formatted[k] !== 'null' &&
+            formatted[k] !== 'N/A' &&
+            formatted[k] !== 'n/a'
         );
         
-        if (validFields.length > 3) {
+        // Log pentru debugging (doar în development)
+        if (process.env.NODE_ENV !== 'production') {
+            console.log('Extracted data:', {
+                totalFields: Object.keys(cleanData).length,
+                validFields: validFields.length,
+                sample: Object.keys(cleanData).slice(0, 10)
+            });
+        }
+        
+        // Dacă avem cel puțin 2 câmpuri valide (inclusiv VIN), considerăm succes
+        if (validFields.length >= 2) {
+            return {
+                success: true,
+                data: formatted,
+                raw: cleanData
+            };
+        }
+        
+        // Dacă nu avem date, returnează totuși ce am găsit (poate sunt date în raw)
+        if (Object.keys(cleanData).length > 0) {
             return {
                 success: true,
                 data: formatted,
@@ -110,13 +179,24 @@ const scrapeFreeVINDecoder = async (vin) => {
         
         return { 
             success: false, 
-            error: 'No valid data extracted from FreeVINDecoder' 
+            error: 'No valid data extracted from FreeVINDecoder',
+            debug: {
+                extractedKeys: Object.keys(cleanData).length,
+                formattedKeys: Object.keys(formatted).length
+            }
         };
     } catch (error) {
         console.error('FreeVINDecoder error:', error.message);
+        console.error('Error details:', {
+            code: error.code,
+            status: error.response?.status,
+            statusText: error.response?.statusText,
+            url: error.config?.url
+        });
         return { 
             success: false, 
-            error: error.message || 'Failed to fetch data from FreeVINDecoder' 
+            error: error.message || 'Failed to fetch data from FreeVINDecoder',
+            details: error.response?.status ? `HTTP ${error.response.status}` : 'Network error'
         };
     }
 };
