@@ -127,29 +127,65 @@ const scrapeFreeVINDecoder = async (vin) => {
         });
         
         // Formatează datele într-un format standard
+        // Caută în mai multe variante de nume pentru fiecare câmp
         const formatted = {
-            make: cleanData.make || cleanData.manufacturer || cleanData.brand || cleanData.marca || null,
-            model: cleanData.model || cleanData.modelul || null,
-            year: cleanData.year || cleanData.model_year || cleanData.anul || cleanData.an || null,
-            engine: cleanData.engine || cleanData.engine_code || cleanData.motor || cleanData.motorul || null,
-            transmission: cleanData.transmission || cleanData.transmisie || null,
-            body_type: cleanData.body_type || cleanData.body_style || cleanData.caroserie || null,
-            fuel_type: cleanData.fuel_type || cleanData.fuel || cleanData.combustibil || null,
-            doors: cleanData.doors || cleanData.usile || null,
-            seats: cleanData.seats || cleanData.scaune || null,
+            make: cleanData.make || cleanData.manufacturer || cleanData.brand || cleanData.marca || 
+                  cleanData.maker || cleanData.producer || cleanData.company || null,
+            model: cleanData.model || cleanData.modelul || cleanData.model_name || null,
+            year: cleanData.year || cleanData.model_year || cleanData.anul || cleanData.an || 
+                  cleanData.production_year || cleanData.manufacturing_year || null,
+            engine: cleanData.engine || cleanData.engine_code || cleanData.motor || cleanData.motorul || 
+                    cleanData.engine_type || cleanData.engine_displacement || null,
+            transmission: cleanData.transmission || cleanData.transmisie || cleanData.transmission_type || 
+                         cleanData.gearbox || null,
+            body_type: cleanData.body_type || cleanData.body_style || cleanData.caroserie || 
+                      cleanData.body || cleanData.vehicle_type || null,
+            fuel_type: cleanData.fuel_type || cleanData.fuel || cleanData.combustibil || 
+                      cleanData.fuel_system || null,
+            doors: cleanData.doors || cleanData.usile || cleanData.number_of_doors || null,
+            seats: cleanData.seats || cleanData.scaune || cleanData.number_of_seats || null,
             vin: vin.toUpperCase()
         };
         
-        // Adaugă toate celelalte câmpuri curate
+        // Dacă nu găsim în câmpurile standard, caută în toate cheile
+        if (!formatted.make) {
+            const makeKeys = Object.keys(cleanData).filter(k => 
+                k.includes('make') || k.includes('manufacturer') || k.includes('brand') || 
+                k.includes('marca') || k.includes('producer')
+            );
+            if (makeKeys.length > 0) {
+                formatted.make = cleanData[makeKeys[0]];
+            }
+        }
+        
+        if (!formatted.model) {
+            const modelKeys = Object.keys(cleanData).filter(k => 
+                k.includes('model') && !k.includes('year')
+            );
+            if (modelKeys.length > 0) {
+                formatted.model = cleanData[modelKeys[0]];
+            }
+        }
+        
+        if (!formatted.year) {
+            const yearKeys = Object.keys(cleanData).filter(k => 
+                k.includes('year') || k.includes('an')
+            );
+            if (yearKeys.length > 0) {
+                formatted.year = cleanData[yearKeys[0]];
+            }
+        }
+        
+        // Adaugă TOATE celelalte câmpuri curate (nu doar cele standard)
+        // Acest lucru asigură că toate datele extrase sunt disponibile
         Object.keys(cleanData).forEach(key => {
+            // Adaugă doar dacă nu este deja în formatted și nu este o cheie duplicată
             if (!formatted[key] && 
-                key !== 'make' && key !== 'model' && key !== 'year' && 
-                key !== 'engine' && key !== 'transmission' && key !== 'body_type' && 
-                key !== 'fuel_type' && key !== 'doors' && key !== 'seats' &&
-                key !== 'vin' && key !== 'marca' && key !== 'modelul' && 
-                key !== 'anul' && key !== 'an' && key !== 'motor' && key !== 'motorul' &&
-                key !== 'transmisie' && key !== 'caroserie' && key !== 'combustibil' &&
-                key !== 'usile' && key !== 'scaune') {
+                key !== 'marca' && key !== 'modelul' && 
+                key !== 'anul' && key !== 'an' && 
+                key !== 'motor' && key !== 'motorul' &&
+                key !== 'transmisie' && key !== 'caroserie' && 
+                key !== 'combustibil' && key !== 'usile' && key !== 'scaune') {
                 formatted[key] = cleanData[key];
             }
         });
