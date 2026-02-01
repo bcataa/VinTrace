@@ -7,14 +7,55 @@ const cheerio = require('cheerio');
  */
 const scrapeFreeVINDecoder = async (vin) => {
     try {
-        const url = `https://www.freevindecoder.eu/?vin=${vin}`;
+        // Încearcă mai întâi endpoint-uri API posibile
+        const apiEndpoints = [
+            `https://www.freevindecoder.eu/api/vin/${vin}`,
+            `https://www.freevindecoder.eu/api/decode/${vin}`,
+            `https://www.freevindecoder.eu/api/v1/vin/${vin}`,
+            `https://www.freevindecoder.eu/ajax/vin/${vin}`,
+            `https://www.freevindecoder.eu/search?vin=${vin}&format=json`
+        ];
+        
+        // Testează endpoint-urile API
+        for (const endpoint of apiEndpoints) {
+            try {
+                const apiResponse = await axios.get(endpoint, {
+                    timeout: 10000,
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                        'Accept': 'application/json, text/plain, */*'
+                    }
+                });
+                
+                if (apiResponse.data && typeof apiResponse.data === 'object') {
+                    console.log(`✅ Found API endpoint: ${endpoint}`);
+                    return {
+                        success: true,
+                        data: apiResponse.data,
+                        raw: apiResponse.data
+                    };
+                }
+            } catch (e) {
+                // Continuă la următorul endpoint
+                continue;
+            }
+        }
+        
+        // Folosește ruta directă: /VIN (fără ?vin=)
+        const url = `https://www.freevindecoder.eu/${vin}`;
+        
         const response = await axios.get(url, {
             timeout: 20000,
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                'Accept-Language': 'en-US,en;q=0.9',
-                'Referer': 'https://www.freevindecoder.eu/'
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.9,ro;q=0.8',
+                'Referer': 'https://www.freevindecoder.eu/',
+                'Cache-Control': 'max-age=0',
+                'Sec-Fetch-Dest': 'document',
+                'Sec-Fetch-Mode': 'navigate',
+                'Sec-Fetch-Site': 'same-origin',
+                'Upgrade-Insecure-Requests': '1'
             }
         });
         
@@ -22,11 +63,18 @@ const scrapeFreeVINDecoder = async (vin) => {
         const data = {};
         
         // Metoda 1: Caută în tabele (cel mai comun format)
+        // Folosește clasele specifice: info-left și info-right
         $('table tr').each((i, elem) => {
-            const cells = $(elem).find('td, th');
-            if (cells.length >= 2) {
-                const label = $(cells[0]).text().trim();
-                const value = $(cells[1]).text().trim();
+            const leftCell = $(elem).find('td.info-left, th.info-left');
+            const rightCell = $(elem).find('td.info-right, th.info-right');
+            
+            if (leftCell.length > 0 && rightCell.length > 0) {
+                const label = leftCell.text().trim();
+                // Extrage textul din link-uri dacă există
+                let value = rightCell.find('a').length > 0 ? 
+                    rightCell.find('a').text().trim() : 
+                    rightCell.text().trim();
+                
                 if (label && value && value.length < 300 && !value.includes('function(')) {
                     const key = label.toLowerCase()
                         .replace(/[^\w\s]/g, '')
@@ -37,8 +85,36 @@ const scrapeFreeVINDecoder = async (vin) => {
                     if (key && key.length > 1 && key.length < 50 && 
                         !key.includes('cookie') && !key.includes('javascript') &&
                         !key.includes('twitter') && !key.includes('facebook') &&
+                        !key.includes('address') && // Ignoră adrese
                         (!data[key] || data[key] === '')) {
                         data[key] = value;
+                    }
+                }
+            } else {
+                // Fallback: caută în orice celule
+                const cells = $(elem).find('td, th');
+                if (cells.length >= 2) {
+                    const label = $(cells[0]).text().trim();
+                    let value = $(cells[1]).text().trim();
+                    // Extrage din link-uri dacă există
+                    if ($(cells[1]).find('a').length > 0) {
+                        value = $(cells[1]).find('a').text().trim();
+                    }
+                    
+                    if (label && value && value.length < 300 && !value.includes('function(')) {
+                        const key = label.toLowerCase()
+                            .replace(/[^\w\s]/g, '')
+                            .replace(/\s+/g, '_')
+                            .replace(/ă/g, 'a').replace(/â/g, 'a')
+                            .replace(/î/g, 'i').replace(/ș/g, 's').replace(/ț/g, 't');
+                        
+                        if (key && key.length > 1 && key.length < 50 && 
+                            !key.includes('cookie') && !key.includes('javascript') &&
+                            !key.includes('twitter') && !key.includes('facebook') &&
+                            !key.includes('address') &&
+                            (!data[key] || data[key] === '')) {
+                            data[key] = value;
+                        }
                     }
                 }
             }
@@ -144,6 +220,8 @@ const scrapeFreeVINDecoder = async (vin) => {
                       cleanData.fuel_system || null,
             doors: cleanData.doors || cleanData.usile || cleanData.number_of_doors || null,
             seats: cleanData.seats || cleanData.scaune || cleanData.number_of_seats || null,
+            manufactured_in: cleanData.manufactured_in || cleanData.country || null,
+            region: cleanData.region || null,
             vin: vin.toUpperCase()
         };
         
